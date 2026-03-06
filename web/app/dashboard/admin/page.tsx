@@ -1,11 +1,11 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import styles from './page.module.css'
-import { LogOut, LayoutDashboard, Bug, Settings, BarChart2 } from 'lucide-react'
-import DashboardCharts from './DashboardCharts'
+import styles from '../page.module.css'
+import { LogOut, LayoutDashboard, Bug, Users, Settings, BarChart2, ShieldAlert } from 'lucide-react'
+import DashboardCharts from '../DashboardCharts'
 
-export default async function DashboardPage() {
+export default async function AdminDashboardPage() {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -14,74 +14,53 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
-    // Get today's start date
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString();
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-    // Fetch total bugs today
-    const { count: totalBugsToday } = await supabase
-        .from('bugs')
-        .select('*', { count: 'exact', head: true })
-        .eq('reporter_id', user.id)
-        .gte('created_at', today);
+    // Global counts
+    const { count: criticalBugs } = await supabase.from('bugs').select('*', { count: 'exact', head: true }).eq('severity', 'critical')
+    const { count: totalBugs } = await supabase.from('bugs').select('*', { count: 'exact', head: true })
+    const { count: totalUsers } = await supabase.from('users').select('*', { count: 'exact', head: true })
 
-    // Fetch critical bugs today
-    const { count: criticalBugsToday } = await supabase
-        .from('bugs')
-        .select('*', { count: 'exact', head: true })
-        .eq('reporter_id', user.id)
-        .eq('severity', 'critical')
-        .gte('created_at', today);
-
-    // Fetch active integrations
-    const { count: activeIntegrations } = await supabase
-        .from('integrations')
-        .select('*', { count: 'exact', head: true });
-
-    // Fetch all bugs for analytics
-    const { data: allBugs } = await supabase
-        .from('bugs')
-        .select('*')
-        .eq('reporter_id', user.id);
+    // Fetch all bugs for unified analytics
+    const { data: allBugs } = await supabase.from('bugs').select('*')
 
     return (
         <div className={styles.layout}>
-            {/* Sidebar */}
+            {/* Admin Sidebar */}
             <aside className={`${styles.sidebar} glass`}>
                 <div className={styles.sidebarHeader}>
-                    <Bug className="text-gradient" size={28} />
-                    <h2>AI Reporter</h2>
+                    <ShieldAlert className="text-gradient" size={28} />
+                    <h2>Admin Portal</h2>
                 </div>
 
                 <nav className={styles.sidebarNav}>
-                    <Link href="/dashboard" className={`${styles.navItem} ${styles.active}`}>
+                    <Link href="/dashboard/admin" className={`${styles.navItem} ${styles.active}`}>
                         <LayoutDashboard size={20} />
-                        <span>My Dashboard</span>
+                        <span>Global Metrics</span>
+                    </Link>
+                    <Link href="/dashboard/admin/users" className={styles.navItem}>
+                        <Users size={20} />
+                        <span>Manage Users</span>
                     </Link>
                     <Link href="/bugs" className={styles.navItem}>
                         <Bug size={20} />
-                        <span>My Bugs</span>
-                    </Link>
-                    <Link href="/reports" className={styles.navItem}>
-                        <BarChart2 size={20} />
-                        <span>Reports</span>
+                        <span>All Bugs Viewer</span>
                     </Link>
                     <Link href="/settings" className={styles.navItem}>
                         <Settings size={20} />
-                        <span>Settings</span>
+                        <span>Global Settings</span>
                     </Link>
                 </nav>
 
                 <div className={styles.sidebarFooter}>
                     <div className={styles.userInfo}>
-                        <div className={styles.avatar}>
+                        <div className={styles.avatar} style={{ background: 'var(--danger-color)' }}>
                             {user.email?.charAt(0).toUpperCase()}
                         </div>
                         <div className={styles.userDetails}>
-                            <span className={styles.userName}>{user.user_metadata?.full_name || 'User'}</span>
-                            <span className={styles.userEmail}>{user.email}</span>
-                            <span className={styles.userEmail} style={{ fontSize: '0.7rem', color: 'var(--primary-color)' }}>Tester</span>
+                            <span className={styles.userName}>{user.user_metadata?.full_name || 'Admin'}</span>
+                            <span className={styles.userEmail} style={{ fontSize: '0.7rem', color: 'var(--danger-color)' }}>Administrator</span>
                         </div>
                     </div>
                     <form action={async () => {
@@ -100,23 +79,17 @@ export default async function DashboardPage() {
             {/* Main Content */}
             <main className={styles.mainContent}>
                 <header className={styles.topbar}>
-                    <h1>My Tester Dashboard</h1>
-                    <div className={styles.actions}>
-                        <Link href="/bugs/new" className={styles.primaryBtn} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Bug size={16} /> Report New Bug
-                        </Link>
-                    </div>
+                    <h1>Global System Analytics</h1>
                 </header>
 
                 <div className={styles.dashboardGrid}>
-                    {/* Stats Cards */}
                     <div className={`${styles.statCard} glass`}>
                         <div className={styles.statIcon} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)' }}>
                             <Bug size={24} />
                         </div>
                         <div className={styles.statData}>
-                            <h3>{criticalBugsToday || 0}</h3>
-                            <p>My Critical Bugs Today</p>
+                            <h3>{criticalBugs || 0}</h3>
+                            <p>Global Critical Defects</p>
                         </div>
                     </div>
 
@@ -125,18 +98,18 @@ export default async function DashboardPage() {
                             <BarChart2 size={24} />
                         </div>
                         <div className={styles.statData}>
-                            <h3>{totalBugsToday || 0}</h3>
-                            <p>Total Logged Today</p>
+                            <h3>{totalBugs || 0}</h3>
+                            <p>Total Platform Bugs</p>
                         </div>
                     </div>
 
                     <div className={`${styles.statCard} glass`}>
                         <div className={styles.statIcon} style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success-color)' }}>
-                            <Settings size={24} />
+                            <Users size={24} />
                         </div>
                         <div className={styles.statData}>
-                            <h3>{allBugs?.length || 0}</h3>
-                            <p>Lifetime Bugs Reported</p>
+                            <h3>{totalUsers || 0}</h3>
+                            <p>Registered Users</p>
                         </div>
                     </div>
                 </div>
