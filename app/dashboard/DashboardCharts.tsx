@@ -21,8 +21,19 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function DashboardCharts({ bugs }: { bugs: any[] }) {
-    if (!bugs || bugs.length === 0) {
+    if (!bugs) {
         return <p>Loading analytics...</p>
+    }
+
+    if (bugs.length === 0) {
+        return (
+            <div className={styles.chartsGrid}>
+                <div className={`${styles.chartCard} glass`} style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem' }}>
+                    <h3 style={{ color: 'var(--text-muted)' }}>No Analytics Available</h3>
+                    <p style={{ color: 'var(--text-muted)' }}>You haven't logged any bugs yet. Start testing to see your metrics!</p>
+                </div>
+            </div>
+        )
     }
 
     // 1. Bugs by Severity
