@@ -30,22 +30,49 @@ export async function updateSession(request: NextRequest) {
     // refreshing the auth token
     const { data: { user } } = await supabase.auth.getUser()
 
+    const path = request.nextUrl.pathname
+
     if (
         !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/signup') &&
-        request.nextUrl.pathname !== '/'
+        !path.startsWith('/login') &&
+        !path.startsWith('/signup') &&
+        path !== '/'
     ) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
-    // Handle logged-in users trying to access login/signup
-    if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup' || request.nextUrl.pathname === '/')) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
-        return NextResponse.redirect(url)
+    if (user) {
+        // Fetch the active user's role from the public.users table
+        const { data: roleData } = await supabase.from('users').select('role').eq('id', user.id).single()
+        const role = roleData?.role || 'tester'
+
+        // Protect Admin Routes
+        if (path.startsWith('/dashboard/admin') && role !== 'admin') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/dashboard'
+            return NextResponse.redirect(url)
+        }
+
+        // Protect Team Lead Routes
+        if (path.startsWith('/dashboard/lead') && role !== 'admin' && role !== 'qa_lead') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/dashboard'
+            return NextResponse.redirect(url)
+        }
+
+        // Redirect logged-in users away from auth pages
+        if (path === '/login' || path === '/signup' || path === '/') {
+            const url = request.nextUrl.clone()
+
+            // Optional: route admins automatically to admin dash
+            if (role === 'admin') url.pathname = '/dashboard/admin'
+            else if (role === 'qa_lead') url.pathname = '/dashboard/lead'
+            else url.pathname = '/dashboard'
+
+            return NextResponse.redirect(url)
+        }
     }
 
     return supabaseResponse
