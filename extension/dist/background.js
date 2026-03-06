@@ -1,0 +1,1 @@
+(()=>{"use strict";console.log("AI Bug Reporter Background Service Worker Loaded"),chrome.commands.onCommand.addListener(function(e){"_execute_action"===e&&console.log("Action shortcut triggered via manifest.")})})();
