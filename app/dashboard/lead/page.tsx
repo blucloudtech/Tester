@@ -52,10 +52,15 @@ export default async function LeadDashboardPage() {
                         <Bug size={20} />
                         <span>Review Bugs</span>
                     </Link>
-                    <Link href="/reports" className={styles.navItem}>
-                        <BarChart2 size={20} />
-                        <span>Team Reports</span>
-                    </Link>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <Link href="/reports" className={styles.navItem}>
+                            <BarChart2 size={20} />
+                            <span>Team Reports</span>
+                        </Link>
+                        <Link href="/reports/story" className={styles.navItem} style={{ paddingLeft: '3rem', fontSize: '0.9rem' }}>
+                            <span>Story Reports</span>
+                        </Link>
+                    </div>
                     <Link href="/settings" className={styles.navItem}>
                         <Settings size={20} />
                         <span>Project Settings</span>

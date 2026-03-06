@@ -148,6 +148,44 @@
     gap: 0.75rem;
     font-size: 0.9rem;
 }
+
+.typeToggle {
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 0.5rem;
+}
+
+.toggleBtn {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.toggleBtn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.toggleBtn.active {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--primary-color);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
 /* V2 Drag & Drop Upload Styles */
 .dropzone {
     border: 2px dashed rgba(255, 255, 255, 0.2);
@@ -163,7 +201,8 @@
     gap: 0.5rem;
 }
 
-.dropzone:hover, .dropzoneActive {
+.dropzone:hover,
+.dropzoneActive {
     border-color: var(--primary-color);
     background: rgba(99, 102, 241, 0.05);
 }
@@ -193,7 +232,7 @@
     left: 0;
     right: 0;
     padding: 1rem;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
     display: flex;
     justify-content: flex-end;
 }
@@ -231,6 +270,7 @@
     display: flex;
     gap: 1rem;
 }
-.splitRow > * {
+
+.splitRow>* {
     flex: 1;
 }

@@ -43,10 +43,15 @@ export default async function AdminDashboardPage() {
                         <Users size={20} />
                         <span>Manage Users</span>
                     </Link>
-                    <Link href="/bugs" className={styles.navItem}>
-                        <Bug size={20} />
-                        <span>All Bugs Viewer</span>
-                    </Link>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <Link href="/bugs" className={styles.navItem}>
+                            <Bug size={20} />
+                            <span>All Bugs Viewer</span>
+                        </Link>
+                        <Link href="/reports/story" className={styles.navItem} style={{ paddingLeft: '3rem', fontSize: '0.9rem' }}>
+                            <span>Story Reports</span>
+                        </Link>
+                    </div>
                     <Link href="/settings" className={styles.navItem}>
                         <Settings size={20} />
                         <span>Global Settings</span>

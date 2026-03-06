@@ -15,6 +15,7 @@ export default function FormClient({ projectId, projectName }: { projectId: stri
     const [jiraStoryId, setJiraStoryId] = useState('')
 
     const [imageBase64, setImageBase64] = useState<string | null>(null)
+    const [inputType, setInputType] = useState<'screenshot' | 'text'>('screenshot')
     const [analyzing, setAnalyzing] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -59,6 +60,40 @@ export default function FormClient({ projectId, projectName }: { projectId: stri
                 if (ai.severity) setSeverity(ai.severity.toLowerCase());
             } else {
                 throw new Error(data.error || 'Failed to analyze image');
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setAnalyzing(false);
+        }
+    }
+
+    const analyzeTextSummary = async () => {
+        if (!summary.trim()) {
+            setError('Please enter a bug summary to generate a report.');
+            return;
+        }
+
+        setAnalyzing(true);
+        setError('');
+        try {
+            const res = await fetch('/api/ai/generate-text-bug', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ summary })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.ai_data) {
+                const ai = data.ai_data;
+                // Don't overwrite their manually typed summary unless it was profoundly improved
+                if (ai.description) setDescription(ai.description);
+                if (ai.steps_to_reproduce) setSteps(ai.steps_to_reproduce);
+                if (ai.expected_result) setExpected(ai.expected_result);
+                if (ai.actual_result) setActual(ai.actual_result);
+                if (ai.severity) setSeverity(ai.severity.toLowerCase());
+            } else {
+                throw new Error(data.error || 'Failed to generate text bug');
             }
         } catch (err: any) {
             setError(err.message);
@@ -134,43 +169,62 @@ export default function FormClient({ projectId, projectName }: { projectId: stri
                 </div>
             )}
 
-            {/* Drag & Drop Screenshot UI */}
-            <div className={styles.formGroup}>
-                <label>Screenshot Evidence (Triggers AI Autofill)</label>
-                {!imageBase64 ? (
-                    <div
-                        className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''}`}
-                        onDragOver={onDragOver}
-                        onDragLeave={onDragLeave}
-                        onDrop={onDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <input
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            ref={fileInputRef}
-                            onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
-                        />
-                        <UploadCloud size={32} className={styles.dropIcon} />
-                        <p>Drag and drop a screenshot here, or click to browse</p>
-                        <span className={styles.hint}>AI will automatically extract the bug details.</span>
-                    </div>
-                ) : (
-                    <div className={styles.imagePreviewContainer}>
-                        <img src={imageBase64} alt="Screenshot Preview" className={styles.imagePreview} />
-                        <div className={styles.imageOverlay}>
-                            {analyzing ? (
-                                <div className={styles.analyzingBadge}><Sparkles size={14} className="animate-spin" /> Analyzing Image...</div>
-                            ) : (
-                                <button type="button" className={styles.removeImageBtn} onClick={() => setImageBase64(null)}>
-                                    <X size={16} /> Remove
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
+            {/* Input Type Toggle */}
+            <div className={styles.typeToggle}>
+                <button
+                    type="button"
+                    className={`${styles.toggleBtn} ${inputType === 'screenshot' ? styles.active : ''}`}
+                    onClick={() => { setInputType('screenshot'); setError(''); }}
+                >
+                    <UploadCloud size={16} /> Upload Screenshot
+                </button>
+                <button
+                    type="button"
+                    className={`${styles.toggleBtn} ${inputType === 'text' ? styles.active : ''}`}
+                    onClick={() => { setInputType('text'); setImageBase64(null); setError(''); }}
+                >
+                    <Sparkles size={16} /> Text Summary
+                </button>
             </div>
+
+            {inputType === 'screenshot' && (
+                <div className={styles.formGroup}>
+                    <label>Screenshot Evidence (Triggers AI Autofill)</label>
+                    {!imageBase64 ? (
+                        <div
+                            className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''}`}
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <input
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                ref={fileInputRef}
+                                onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
+                            />
+                            <UploadCloud size={32} className={styles.dropIcon} />
+                            <p>Drag and drop a screenshot here, or click to browse</p>
+                            <span className={styles.hint}>AI will automatically extract the bug details.</span>
+                        </div>
+                    ) : (
+                        <div className={styles.imagePreviewContainer}>
+                            <img src={imageBase64} alt="Screenshot Preview" className={styles.imagePreview} />
+                            <div className={styles.imageOverlay}>
+                                {analyzing ? (
+                                    <div className={styles.analyzingBadge}><Sparkles size={14} className="animate-spin" /> Analyzing Image...</div>
+                                ) : (
+                                    <button type="button" className={styles.removeImageBtn} onClick={() => setImageBase64(null)}>
+                                        <X size={16} /> Remove
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className={styles.formGroup}>
                 <label>Project</label>
@@ -190,14 +244,35 @@ export default function FormClient({ projectId, projectName }: { projectId: stri
 
             <div className={styles.formGroup}>
                 <label>Bug Summary <span className={styles.required}>*</span></label>
-                <input
-                    type="text"
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    placeholder="Briefly describe the issue..."
-                    required
-                    className={styles.input}
-                />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                        type="text"
+                        value={summary}
+                        onChange={(e) => setSummary(e.target.value)}
+                        placeholder="Briefly describe the issue..."
+                        required
+                        className={styles.input}
+                        style={{ flex: 1 }}
+                    />
+                    {inputType === 'text' && (
+                        <button
+                            type="button"
+                            onClick={analyzeTextSummary}
+                            disabled={analyzing || !summary.trim()}
+                            style={{
+                                padding: '0 1rem', background: 'var(--primary-color)', color: '#fff',
+                                border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex',
+                                alignItems: 'center', gap: '0.5rem', fontWeight: 500
+                            }}
+                        >
+                            {analyzing ? <Sparkles size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            Auto-Generate
+                        </button>
+                    )}
+                </div>
+                {inputType === 'text' && (
+                    <span className={styles.hint}>Type a summary and click Auto-Generate to fill out the form using AI.</span>
+                )}
             </div>
 
             {/* V2: Editable AI Fields. These stay visible if populated, otherwise shown as standard fields */}

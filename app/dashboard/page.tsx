@@ -4,8 +4,9 @@ import Link from 'next/link'
 import styles from './page.module.css'
 import { LogOut, LayoutDashboard, Bug, Settings, BarChart2 } from 'lucide-react'
 import DashboardCharts from './DashboardCharts'
+import BugFilterBar from '@/components/BugFilterBar'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<any> }) {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -13,6 +14,11 @@ export default async function DashboardPage() {
     if (!user) {
         redirect('/login')
     }
+
+    const resolvedParams = await searchParams;
+
+    // Fetch projects for the filter bar
+    const { data: projects } = await supabase.from('projects').select('id, name');
 
     // Get today's start date
     const today = new Date();
@@ -40,10 +46,29 @@ export default async function DashboardPage() {
         .select('*', { count: 'exact', head: true });
 
     // Fetch all bugs for analytics
-    const { data: allBugs } = await supabase
+    let bugsQuery = supabase
         .from('bugs')
         .select('*')
         .eq('reporter_id', user.id);
+
+    // Apply URL filters
+    if (resolvedParams.project) bugsQuery = bugsQuery.eq('project_id', resolvedParams.project);
+    if (resolvedParams.story) bugsQuery = bugsQuery.eq('jira_story_id', resolvedParams.story);
+    if (resolvedParams.status) bugsQuery = bugsQuery.eq('status', resolvedParams.status);
+    if (resolvedParams.severity) bugsQuery = bugsQuery.eq('severity', resolvedParams.severity);
+    if (resolvedParams.start) bugsQuery = bugsQuery.gte('created_at', new Date(resolvedParams.start).toISOString());
+    if (resolvedParams.end) {
+        const endDate = new Date(resolvedParams.end);
+        endDate.setDate(endDate.getDate() + 1);
+        bugsQuery = bugsQuery.lt('created_at', endDate.toISOString());
+    }
+
+    const { data: allBugsRaw, error: allBugsError } = await bugsQuery;
+
+    if (allBugsError) {
+        console.error("Dashboard Supabase Error:", allBugsError);
+    }
+    const allBugs = allBugsRaw || [];
 
     return (
         <div className={styles.layout}>
@@ -63,10 +88,15 @@ export default async function DashboardPage() {
                         <Bug size={20} />
                         <span>My Bugs</span>
                     </Link>
-                    <Link href="/reports" className={styles.navItem}>
-                        <BarChart2 size={20} />
-                        <span>Reports</span>
-                    </Link>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <Link href="/reports" className={styles.navItem}>
+                            <BarChart2 size={20} />
+                            <span>Reports</span>
+                        </Link>
+                        <Link href="/reports/story" className={styles.navItem} style={{ paddingLeft: '3rem', fontSize: '0.9rem' }}>
+                            <span>Story Reports</span>
+                        </Link>
+                    </div>
                     <Link href="/settings" className={styles.navItem}>
                         <Settings size={20} />
                         <span>Settings</span>
@@ -139,6 +169,10 @@ export default async function DashboardPage() {
                             <p>Lifetime Bugs Reported</p>
                         </div>
                     </div>
+                </div>
+
+                <div style={{ marginTop: '2rem' }}>
+                    <BugFilterBar projects={projects || []} />
                 </div>
 
                 <DashboardCharts bugs={allBugs || []} />
