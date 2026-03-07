@@ -152,6 +152,18 @@ export default function FormClient({ projectId, projectName }: { projectId: stri
                 throw new Error(data.error || 'Failed to submit bug report');
             }
 
+            // Integrations parsing
+            if (data.integrations && data.integrations.length > 0) {
+                const jiraRes = data.integrations.find((i: any) => i.provider === 'jira');
+                if (jiraRes) {
+                    if (jiraRes.success) {
+                        window.alert(`Jira bug created - ${jiraRes.key}`);
+                    } else {
+                        window.alert(`Jira Integration Error:\n\n${jiraRes.error}`);
+                    }
+                }
+            }
+
             router.push(`/bugs/${data.bug.id}`);
 
         } catch (err: any) {

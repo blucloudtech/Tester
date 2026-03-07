@@ -114,6 +114,8 @@ export async function POST(req: Request) {
             .select('*')
             .eq('project_id', projectId);
 
+        const integrationResults = [];
+
         if (integrations && integrations.length > 0) {
             for (const integration of integrations) {
                 if (integration.provider === 'teams' && integration.config?.webhook_url) {
@@ -140,19 +142,22 @@ export async function POST(req: Request) {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(teamsPayload)
                         });
-                    } catch (e) {
+                        integrationResults.push({ provider: 'teams', success: true });
+                    } catch (e: any) {
                         console.error('Teams webhook error:', e);
+                        integrationResults.push({ provider: 'teams', success: false, error: e.message });
                     }
                 }
 
                 if (integration.provider === 'jira' && integration.config?.domain) {
                     // Jira logic will go here
-                    await syncToJira(integration.config, bugData, aiData, jiraStoryId, screenshotBase64);
+                    const jiraRes = await syncToJira(integration.config, bugData, aiData, jiraStoryId, screenshotBase64);
+                    integrationResults.push({ provider: 'jira', ...jiraRes });
                 }
             }
         }
 
-        return NextResponse.json({ success: true, bug: bugData });
+        return NextResponse.json({ success: true, bug: bugData, integrations: integrationResults });
 
     } catch (error: any) {
         console.error('Bug Creation Error:', error);
@@ -164,7 +169,7 @@ export async function POST(req: Request) {
 async function syncToJira(config: any, bug: any, aiData: any, parentStoryId: string, base64Image: string) {
     try {
         const { domain, email, apiToken, projectKey } = config;
-        if (!domain || !email || !apiToken || !projectKey) return;
+        if (!domain || !email || !apiToken || !projectKey) return { success: false, error: 'Missing Jira config' };
 
         const basicAuth = Buffer.from(`${email}:${apiToken}`).toString('base64');
         const baseUrl = `https://${domain}.atlassian.net/rest/api/3`;
@@ -197,6 +202,17 @@ async function syncToJira(config: any, bug: any, aiData: any, parentStoryId: str
         });
 
         const createData = await createRes.json();
+
+        if (!createRes.ok) {
+            let errorMsg = 'Failed to create Jira issue';
+            if (createData.errors && Object.keys(createData.errors).length > 0) {
+                errorMsg = Object.values(createData.errors).join(', ');
+            } else if (createData.errorMessages && createData.errorMessages.length > 0) {
+                errorMsg = createData.errorMessages.join(', ');
+            }
+            return { success: false, error: errorMsg };
+        }
+
         const issueKey = createData.key;
 
         // 1.5 Link to parent story if provided
@@ -242,7 +258,9 @@ async function syncToJira(config: any, bug: any, aiData: any, parentStoryId: str
             });
         }
 
-    } catch (err) {
+        return { success: true, key: issueKey };
+    } catch (err: any) {
         console.error('Jira sync failed:', err);
+        return { success: false, error: err.message || 'Internal Jira API error' };
     }
 }
